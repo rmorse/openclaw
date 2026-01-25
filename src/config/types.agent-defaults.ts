@@ -91,6 +91,17 @@ export type CliBackendConfig = {
   serialize?: boolean;
 };
 
+export type CliRunnerConfig = {
+  /** Enable CLI mode (route runs through `claude` CLI). Default: false */
+  enabled?: boolean;
+  /** Path to claude binary. Default: 'claude' */
+  path?: string;
+  /** Extra CLI flags */
+  flags?: string[];
+  /** Skip permission prompts. Default: false */
+  skipPermissions?: boolean;
+};
+
 export type AgentDefaultsConfig = {
   /** Primary model and fallbacks (provider/model). */
   model?: AgentModelListConfig;
@@ -98,6 +109,8 @@ export type AgentDefaultsConfig = {
   imageModel?: AgentModelListConfig;
   /** Model catalog with optional aliases (full provider/model keys). */
   models?: Record<string, AgentModelEntryConfig>;
+  /** CLI runner config (route agent runs through `claude` CLI instead of Pi SDK). */
+  cli?: CliRunnerConfig;
   /** Agent working directory (preferred). Used as the default cwd for agent runs. */
   workspace?: string;
   /** Optional repository root for system prompt runtime line (overrides auto-detect). */

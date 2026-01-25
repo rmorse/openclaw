@@ -13,6 +13,16 @@ import {
   HumanDelaySchema,
 } from "./zod-schema.core.js";
 
+const CliRunnerSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    path: z.string().optional(),
+    flags: z.array(z.string()).optional(),
+    skipPermissions: z.boolean().optional(),
+  })
+  .strict()
+  .optional();
+
 export const AgentDefaultsSchema = z
   .object({
     model: z
@@ -41,6 +51,7 @@ export const AgentDefaultsSchema = z
           .strict(),
       )
       .optional(),
+    cli: CliRunnerSchema,
     workspace: z.string().optional(),
     repoRoot: z.string().optional(),
     skipBootstrap: z.boolean().optional(),
