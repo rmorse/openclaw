@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(pnpm eslint:*)",
+      "Bash(pnpm run lint:*)",
+      "Bash(claude --version:*)"
+    ]
+  }
+}

@@ -39,7 +39,7 @@ export async function runCliAgent(params: RunEmbeddedPiAgentParams): Promise<Emb
     args.push("--dangerously-skip-permissions");
   }
 
-  diag.debug(`cli spawn: cmd=${cliPath} sessionId=${params.sessionId} model=${model}`);
+  diag.info(`cli spawn: cmd=${cliPath} sessionId=${params.sessionId} model=${model}`);
 
   return new Promise<EmbeddedPiRunResult>((resolve) => {
     let isStreaming = true;

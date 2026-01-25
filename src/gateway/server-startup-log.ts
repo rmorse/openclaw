@@ -21,6 +21,13 @@ export function logGatewayStartup(params: {
   params.log.info(`agent model: ${modelRef}`, {
     consoleMessage: `agent model: ${chalk.whiteBright(modelRef)}`,
   });
+  const cliEnabled = params.cfg?.agents?.defaults?.cli?.enabled === true;
+  if (cliEnabled) {
+    const cliPath = params.cfg?.agents?.defaults?.cli?.path ?? "claude";
+    params.log.info(`cli runner: enabled (${cliPath})`, {
+      consoleMessage: `cli runner: ${chalk.greenBright("enabled")} (${cliPath})`,
+    });
+  }
   const scheme = params.tlsEnabled ? "wss" : "ws";
   params.log.info(
     `listening on ${scheme}://${params.bindHost}:${params.port} (PID ${process.pid})`,
