@@ -4,6 +4,7 @@ import {
   resolveAgentModelFallbacksOverride,
   resolveAgentModelPrimary,
   resolveAgentWorkspaceDir,
+  resolveDefaultAgentId,
 } from "../agents/agent-scope.js";
 import { ensureAuthProfileStore } from "../agents/auth-profiles.js";
 import { runCliAgent } from "../agents/cli-runner.js";
@@ -67,12 +68,14 @@ export async function agentCommand(
 ) {
   const body = (opts.message ?? "").trim();
   if (!body) throw new Error("Message (--message) is required");
-  if (!opts.to && !opts.sessionId && !opts.sessionKey && !opts.agentId) {
+
+  const cfg = loadConfig();
+  const resolvedAgentId = opts.agentId?.trim() || resolveDefaultAgentId(cfg);
+  if (!opts.to && !opts.sessionId && !opts.sessionKey && !resolvedAgentId) {
     throw new Error("Pass --to <E.164>, --session-id, or --agent to choose a session");
   }
 
-  const cfg = loadConfig();
-  const agentIdOverrideRaw = opts.agentId?.trim();
+  const agentIdOverrideRaw = resolvedAgentId;
   const agentIdOverride = agentIdOverrideRaw ? normalizeAgentId(agentIdOverrideRaw) : undefined;
   if (agentIdOverride) {
     const knownAgents = listAgentIds(cfg);

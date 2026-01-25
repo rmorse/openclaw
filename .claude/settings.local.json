@@ -7,7 +7,9 @@
       "Bash(pnpm tsc:*)",
       "Bash(pnpm eslint:*)",
       "Bash(pnpm run lint:*)",
-      "Bash(claude --version:*)"
+      "Bash(claude --version:*)",
+      "Bash(grep:*)",
+      "Bash(pnpm build:*)"
     ]
   }
 }

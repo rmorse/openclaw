@@ -4,7 +4,7 @@ import { withProgress } from "../cli/progress.js";
 import { loadConfig } from "../config/config.js";
 import { resolveSessionKeyForRequest } from "./agent/session.js";
 import { callGateway, randomIdempotencyKey } from "../gateway/call.js";
-import { listAgentIds } from "../agents/agent-scope.js";
+import { listAgentIds, resolveDefaultAgentId } from "../agents/agent-scope.js";
 import { normalizeAgentId } from "../routing/session-key.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { formatCliCommand } from "../cli/command-format.js";
@@ -82,12 +82,14 @@ function formatPayloadForLog(payload: {
 export async function agentViaGatewayCommand(opts: AgentCliOpts, runtime: RuntimeEnv) {
   const body = (opts.message ?? "").trim();
   if (!body) throw new Error("Message (--message) is required");
-  if (!opts.to && !opts.sessionId && !opts.agent) {
+
+  const cfg = loadConfig();
+  const resolvedAgent = opts.agent?.trim() || resolveDefaultAgentId(cfg);
+  if (!opts.to && !opts.sessionId && !resolvedAgent) {
     throw new Error("Pass --to <E.164>, --session-id, or --agent to choose a session");
   }
 
-  const cfg = loadConfig();
-  const agentIdRaw = opts.agent?.trim();
+  const agentIdRaw = resolvedAgent;
   const agentId = agentIdRaw ? normalizeAgentId(agentIdRaw) : undefined;
   if (agentId) {
     const knownAgents = listAgentIds(cfg);
