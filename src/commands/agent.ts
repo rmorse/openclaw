@@ -8,6 +8,7 @@ import {
 } from "../agents/agent-scope.js";
 import { ensureAuthProfileStore } from "../agents/auth-profiles.js";
 import { runCliAgent } from "../agents/cli-runner.js";
+import { getCliSessionMapping } from "../agents/cli-session-map.js";
 import { getCliSessionId } from "../agents/cli-session.js";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from "../agents/defaults.js";
 import { loadModelCatalog } from "../agents/model-catalog.js";
@@ -409,9 +410,15 @@ export async function agentCommand(
           }
           const authProfileId =
             providerOverride === provider ? sessionEntry?.authProfileOverride : undefined;
+          // Look up CLI session ID for PTY mode (when agents.defaults.cli.enabled)
+          const isCliModeEnabled = cfg?.agents?.defaults?.cli?.enabled === true;
+          const embeddedCliSessionId = isCliModeEnabled
+            ? getCliSessionMapping(cfg, sessionId, sessionAgentId)
+            : undefined;
           return runEmbeddedPiAgent({
             sessionId,
             sessionKey,
+            cliSessionId: embeddedCliSessionId,
             messageChannel,
             agentAccountId: runContext.accountId,
             messageTo: opts.replyTo ?? opts.to,
@@ -504,6 +511,7 @@ export async function agentCommand(
         fallbackProvider,
         fallbackModel,
         result,
+        agentId: sessionAgentId,
       });
     }
 

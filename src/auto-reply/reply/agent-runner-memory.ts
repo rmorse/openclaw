@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { resolveAgentModelFallbacksOverride } from "../../agents/agent-scope.js";
+import { getCliSessionId } from "../../agents/cli-session.js";
 import { runWithModelFallback } from "../../agents/model-fallback.js";
 import { isCliProvider } from "../../agents/model-selection.js";
 import { runEmbeddedPiAgent } from "../../agents/pi-embedded.js";
@@ -101,9 +102,12 @@ export async function runMemoryFlushIfNeeded(params: {
           provider === params.followupRun.run.provider
             ? params.followupRun.run.authProfileId
             : undefined;
+        // Look up CLI session ID for PTY mode (when agents.defaults.cli.enabled)
+        const embeddedCliSessionId = getCliSessionId(params.sessionEntry, "claude-cli");
         return runEmbeddedPiAgent({
           sessionId: params.followupRun.run.sessionId,
           sessionKey: params.sessionKey,
+          cliSessionId: embeddedCliSessionId,
           messageProvider: params.sessionCtx.Provider?.trim().toLowerCase() || undefined,
           agentAccountId: params.sessionCtx.AccountId,
           messageTo: params.sessionCtx.OriginatingTo ?? params.sessionCtx.To,

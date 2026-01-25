@@ -305,9 +305,12 @@ export async function runCronIsolatedAgentTurn(params: {
             cliSessionId,
           });
         }
+        // Look up CLI session ID for PTY mode (when agents.defaults.cli.enabled)
+        const embeddedCliSessionId = getCliSessionId(cronSession.sessionEntry, "claude-cli");
         return runEmbeddedPiAgent({
           sessionId: cronSession.sessionEntry.sessionId,
           sessionKey: agentSessionKey,
+          cliSessionId: embeddedCliSessionId,
           messageChannel,
           agentAccountId: resolvedDelivery.accountId,
           sessionFile,
@@ -349,6 +352,14 @@ export async function runCronIsolatedAgentTurn(params: {
       const cliSessionId = runResult.meta.agentMeta?.sessionId?.trim();
       if (cliSessionId) {
         setCliSessionId(cronSession.sessionEntry, providerUsed, cliSessionId);
+      }
+    }
+    // Also store CLI session ID for PTY mode (agents.defaults.cli.enabled)
+    const isCliMode = cfgWithAgentDefaults?.agents?.defaults?.cli?.enabled === true;
+    if (isCliMode) {
+      const cliSessionId = runResult.meta.agentMeta?.sessionId?.trim();
+      if (cliSessionId) {
+        setCliSessionId(cronSession.sessionEntry, "claude-cli", cliSessionId);
       }
     }
     if (hasNonzeroUsage(usage)) {

@@ -368,9 +368,12 @@ export async function runReplyAgent(params: {
     const modelUsed = runResult.meta.agentMeta?.model ?? fallbackModel ?? defaultModel;
     const providerUsed =
       runResult.meta.agentMeta?.provider ?? fallbackProvider ?? followupRun.run.provider;
-    const cliSessionId = isCliProvider(providerUsed, cfg)
-      ? runResult.meta.agentMeta?.sessionId?.trim()
-      : undefined;
+    // Capture CLI session ID for both CLI providers and CLI mode (PTY runner)
+    const isCliMode = cfg?.agents?.defaults?.cli?.enabled === true;
+    const cliSessionId =
+      isCliProvider(providerUsed, cfg) || isCliMode
+        ? runResult.meta.agentMeta?.sessionId?.trim()
+        : undefined;
     const contextTokensUsed =
       agentCfgContextTokens ??
       lookupContextTokens(modelUsed) ??

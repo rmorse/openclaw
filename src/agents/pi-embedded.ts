@@ -1,7 +1,6 @@
 import type { ClawdbotConfig } from "../config/config.js";
 import type { RunEmbeddedPiAgentParams } from "./pi-embedded-runner/run/params.js";
 import type { EmbeddedPiRunResult } from "./pi-embedded-runner/types.js";
-import { diagnosticLogger as diag } from "../logging/diagnostic.js";
 import * as embedded from "./pi-embedded-runner.js";
 import * as cli from "./pi-cli-runner.js";
 
@@ -14,10 +13,7 @@ export type {
 } from "./pi-embedded-runner.js";
 
 // Re-export utilities that don't need routing
-export {
-  compactEmbeddedPiSession,
-  resolveEmbeddedSessionLane,
-} from "./pi-embedded-runner.js";
+export { compactEmbeddedPiSession, resolveEmbeddedSessionLane } from "./pi-embedded-runner.js";
 
 /**
  * Check if CLI mode is enabled in config.
@@ -33,7 +29,6 @@ export async function runEmbeddedPiAgent(
   params: RunEmbeddedPiAgentParams,
 ): Promise<EmbeddedPiRunResult> {
   if (isCliMode(params.config)) {
-    diag.info(`cli mode: routing sessionId=${params.sessionId}`);
     return cli.runCliAgent(params);
   }
   return embedded.runEmbeddedPiAgent(params);

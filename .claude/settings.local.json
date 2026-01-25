@@ -9,7 +9,10 @@
       "Bash(pnpm run lint:*)",
       "Bash(claude --version:*)",
       "Bash(grep:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(git log:*)",
+      "Bash(ls:*)"
     ]
   }
 }

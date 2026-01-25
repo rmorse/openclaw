@@ -42,10 +42,15 @@ export async function persistSessionUsageUpdate(params: {
             systemPromptReport: params.systemPromptReport ?? entry.systemPromptReport,
             updatedAt: Date.now(),
           };
-          const cliProvider = params.providerUsed ?? entry.modelProvider;
-          if (params.cliSessionId && cliProvider) {
+          if (params.cliSessionId) {
             const nextEntry = { ...entry, ...patch };
-            setCliSessionId(nextEntry, cliProvider, params.cliSessionId);
+            // Always store under "claude-cli" for PTY mode lookup compatibility
+            setCliSessionId(nextEntry, "claude-cli", params.cliSessionId);
+            // Also store under actual provider if different
+            const cliProvider = params.providerUsed ?? entry.modelProvider;
+            if (cliProvider && cliProvider !== "claude-cli") {
+              setCliSessionId(nextEntry, cliProvider, params.cliSessionId);
+            }
             return {
               ...patch,
               cliSessionIds: nextEntry.cliSessionIds,
@@ -74,10 +79,15 @@ export async function persistSessionUsageUpdate(params: {
             systemPromptReport: params.systemPromptReport ?? entry.systemPromptReport,
             updatedAt: Date.now(),
           };
-          const cliProvider = params.providerUsed ?? entry.modelProvider;
-          if (params.cliSessionId && cliProvider) {
+          if (params.cliSessionId) {
             const nextEntry = { ...entry, ...patch };
-            setCliSessionId(nextEntry, cliProvider, params.cliSessionId);
+            // Always store under "claude-cli" for PTY mode lookup compatibility
+            setCliSessionId(nextEntry, "claude-cli", params.cliSessionId);
+            // Also store under actual provider if different
+            const cliProvider = params.providerUsed ?? entry.modelProvider;
+            if (cliProvider && cliProvider !== "claude-cli") {
+              setCliSessionId(nextEntry, cliProvider, params.cliSessionId);
+            }
             return {
               ...patch,
               cliSessionIds: nextEntry.cliSessionIds,

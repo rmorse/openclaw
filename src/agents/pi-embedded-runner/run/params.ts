@@ -91,4 +91,6 @@ export type RunEmbeddedPiAgentParams = {
   streamParams?: AgentStreamParams;
   ownerNumbers?: string[];
   enforceFinalTag?: boolean;
+  /** Captured CLI session ID for continuity (PTY runner). */
+  cliSessionId?: string;
 };

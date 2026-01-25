@@ -54,6 +54,10 @@ export async function runCliAgent(params: {
   const resolvedWorkspace = resolveUserPath(params.workspaceDir);
   const workspaceDir = resolvedWorkspace;
 
+  log.debug(
+    `** cli start: provider=${params.provider} model=${params.model} sessionId=${params.sessionId} cliSessionId=${params.cliSessionId ?? "(none)"}`,
+  );
+
   const backendResolved = resolveCliBackendConfig(params.provider, params.config);
   if (!backendResolved) {
     throw new Error(`Unknown CLI backend: ${params.provider}`);
@@ -62,6 +66,10 @@ export async function runCliAgent(params: {
   const modelId = (params.model ?? "default").trim() || "default";
   const normalizedModel = normalizeCliModel(modelId, backend);
   const modelDisplay = `${params.provider}/${modelId}`;
+
+  log.debug(
+    `** cli backend: id=${backendResolved.id} cmd=${backend.command} model=${normalizedModel}`,
+  );
 
   const extraSystemPrompt = [
     params.extraSystemPrompt?.trim(),
@@ -121,6 +129,11 @@ export async function runCliAgent(params: {
       ? cliSessionIdToSend
       : undefined
     : undefined;
+
+  log.debug(
+    `** cli session: cliSessionIdToSend=${cliSessionIdToSend ?? "(none)"} isNew=${isNew} useResume=${useResume} sessionIdSent=${sessionIdSent ?? "(none)"}`,
+  );
+
   const systemPromptArg = resolveSystemPromptUsage({
     backend,
     isNewSession: isNew,
@@ -165,7 +178,7 @@ export async function runCliAgent(params: {
   try {
     const output = await enqueueCliRun(queueKey, async () => {
       log.info(
-        `cli exec: provider=${params.provider} model=${normalizedModel} promptChars=${params.prompt.length}`,
+        `** cli exec: provider=${params.provider} model=${normalizedModel} promptChars=${params.prompt.length}`,
       );
       const logOutputText = isTruthyEnvValue(process.env.CLAWDBOT_CLAUDE_CLI_LOG_OUTPUT);
       if (logOutputText) {
@@ -201,7 +214,7 @@ export async function runCliAgent(params: {
             logArgs[promptIndex] = `<prompt:${argsPrompt.length} chars>`;
           }
         }
-        log.info(`cli argv: ${backend.command} ${logArgs.join(" ")}`);
+        log.info(`** cli argv: ${backend.command} ${logArgs.join(" ")}`);
       }
 
       const env = (() => {
@@ -218,6 +231,13 @@ export async function runCliAgent(params: {
         await cleanupResumeProcesses(backend, cliSessionIdToSend);
       }
 
+      // Log full command
+      const fullCmd = [backend.command, ...args];
+      log.debug(
+        `** cli cmd: ${fullCmd.map((a) => (a.includes(" ") ? `"${a.slice(0, 50)}..."` : a)).join(" ")}`,
+      );
+      log.debug(`** cli cwd: ${workspaceDir}`);
+
       const result = await runCommandWithTimeout([backend.command, ...args], {
         timeoutMs: params.timeoutMs,
         cwd: workspaceDir,
@@ -227,13 +247,16 @@ export async function runCliAgent(params: {
 
       const stdout = result.stdout.trim();
       const stderr = result.stderr.trim();
+
+      log.debug(`** cli exit: code=${result.code} signal=${result.signal} killed=${result.killed}`);
+
       if (logOutputText) {
         if (stdout) log.info(`cli stdout:\n${stdout}`);
         if (stderr) log.info(`cli stderr:\n${stderr}`);
       }
       if (shouldLogVerbose()) {
-        if (stdout) log.debug(`cli stdout:\n${stdout}`);
-        if (stderr) log.debug(`cli stderr:\n${stderr}`);
+        if (stdout) log.debug(`** cli  stdout:\n${stdout}`);
+        if (stderr) log.debug(`** cli  stderr:\n${stderr}`);
       }
 
       if (result.code !== 0) {
@@ -264,13 +287,18 @@ export async function runCliAgent(params: {
 
     const text = output.text?.trim();
     const payloads = text ? [{ text }] : undefined;
+    const resolvedSessionId = output.sessionId ?? sessionIdSent ?? params.sessionId ?? "";
+
+    log.debug(
+      `** cli  done: durationMs=${Date.now() - started} textLen=${text?.length ?? 0} sessionId=${resolvedSessionId}`,
+    );
 
     return {
       payloads,
       meta: {
         durationMs: Date.now() - started,
         agentMeta: {
-          sessionId: output.sessionId ?? sessionIdSent ?? params.sessionId ?? "",
+          sessionId: resolvedSessionId,
           provider: params.provider,
           model: modelId,
           usage: output.usage,

@@ -1,3 +1,4 @@
+import { saveCliSessionMapping } from "../../agents/cli-session-map.js";
 import { setCliSessionId } from "../../agents/cli-session.js";
 import { lookupContextTokens } from "../../agents/context.js";
 import { DEFAULT_CONTEXT_TOKENS } from "../../agents/defaults.js";
@@ -22,6 +23,7 @@ export async function updateSessionStoreAfterAgentRun(params: {
   fallbackProvider?: string;
   fallbackModel?: string;
   result: RunResult;
+  agentId?: string;
 }) {
   const {
     cfg,
@@ -34,6 +36,7 @@ export async function updateSessionStoreAfterAgentRun(params: {
     fallbackProvider,
     fallbackModel,
     result,
+    agentId,
   } = params;
 
   const usage = result.meta.agentMeta?.usage;
@@ -54,9 +57,18 @@ export async function updateSessionStoreAfterAgentRun(params: {
     model: modelUsed,
     contextTokens,
   };
+  const capturedSessionId = result.meta.agentMeta?.sessionId?.trim();
   if (isCliProvider(providerUsed, cfg)) {
-    const cliSessionId = result.meta.agentMeta?.sessionId?.trim();
-    if (cliSessionId) setCliSessionId(next, providerUsed, cliSessionId);
+    if (capturedSessionId) {
+      setCliSessionId(next, providerUsed, capturedSessionId);
+    }
+  }
+  // Also store CLI session ID for PTY mode (agents.defaults.cli.enabled)
+  const isCliMode = cfg?.agents?.defaults?.cli?.enabled === true;
+  if (isCliMode && capturedSessionId) {
+    setCliSessionId(next, "claude-cli", capturedSessionId);
+    // Save to separate map file (survives session store overwrites)
+    saveCliSessionMapping(cfg, sessionId, capturedSessionId, agentId);
   }
   next.abortedLastRun = result.meta.aborted ?? false;
   if (hasNonzeroUsage(usage)) {

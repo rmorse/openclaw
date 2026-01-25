@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { resolveAgentModelFallbacksOverride } from "../../agents/agent-scope.js";
+import { getCliSessionId } from "../../agents/cli-session.js";
 import { lookupContextTokens } from "../../agents/context.js";
 import { DEFAULT_CONTEXT_TOKENS } from "../../agents/defaults.js";
 import { runWithModelFallback } from "../../agents/model-fallback.js";
@@ -136,9 +137,12 @@ export function createFollowupRunner(params: {
           run: (provider, model) => {
             const authProfileId =
               provider === queued.run.provider ? queued.run.authProfileId : undefined;
+            // Look up CLI session ID for PTY mode (when agents.defaults.cli.enabled)
+            const embeddedCliSessionId = getCliSessionId(sessionEntry, "claude-cli");
             return runEmbeddedPiAgent({
               sessionId: queued.run.sessionId,
               sessionKey: queued.run.sessionKey,
+              cliSessionId: embeddedCliSessionId,
               messageProvider: queued.run.messageProvider,
               agentAccountId: queued.run.agentAccountId,
               messageTo: queued.originatingTo,

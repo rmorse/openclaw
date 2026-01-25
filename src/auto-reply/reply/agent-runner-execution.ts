@@ -208,9 +208,15 @@ export async function runAgentTurnWithFallback(params: {
             provider === params.followupRun.run.provider
               ? params.followupRun.run.authProfileId
               : undefined;
+          // Look up CLI session ID for PTY mode (when agents.defaults.cli.enabled)
+          const embeddedCliSessionId = getCliSessionId(
+            params.getActiveSessionEntry(),
+            "claude-cli",
+          );
           return runEmbeddedPiAgent({
             sessionId: params.followupRun.run.sessionId,
             sessionKey: params.sessionKey,
+            cliSessionId: embeddedCliSessionId,
             messageProvider: params.sessionCtx.Provider?.trim().toLowerCase() || undefined,
             agentAccountId: params.sessionCtx.AccountId,
             messageTo: params.sessionCtx.OriginatingTo ?? params.sessionCtx.To,
