@@ -17,9 +17,9 @@ vi.mock("@buape/carbon", () => ({
   MessageReactionAddListener: class {},
   MessageReactionRemoveListener: class {},
   PresenceUpdateListener: class {},
-  Row: class {
-    constructor(_components: unknown[]) {}
-  },
+  Row: class {},
+  StringSelectMenu: class {},
+  BaseMessageInteractiveComponent: class {},
 }));
 
 vi.mock("../auto-reply/dispatch.js", async (importOriginal) => {
