@@ -456,7 +456,7 @@ export function createNodesTool(options?: {
             // the gateway and wait for the user to approve/deny via the UI.
             const APPROVAL_TIMEOUT_MS = 120_000;
             const cmdText = command.join(" ");
-            const approvalResult = (await callGatewayTool(
+            const approvalResult = await callGatewayTool(
               "exec.approval.request",
               { ...gatewayOpts, timeoutMs: APPROVAL_TIMEOUT_MS + 5_000 },
               {
@@ -467,7 +467,7 @@ export function createNodesTool(options?: {
                 sessionKey,
                 timeoutMs: APPROVAL_TIMEOUT_MS,
               },
-            )) as { decision?: string; id?: string } | null;
+            );
 
             const decision =
               approvalResult && typeof approvalResult === "object"
