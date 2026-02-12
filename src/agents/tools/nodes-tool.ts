@@ -437,13 +437,13 @@ export function createNodesTool(options?: {
 
             // First attempt without approval flags.
             try {
-              const raw = (await callGatewayTool("node.invoke", gatewayOpts, {
+              const raw = await callGatewayTool<{ payload?: unknown }>("node.invoke", gatewayOpts, {
                 nodeId,
                 command: "system.run",
                 params: runParams,
                 timeoutMs: invokeTimeoutMs,
                 idempotencyKey: crypto.randomUUID(),
-              })) as { payload?: unknown };
+              });
               return jsonResult(raw?.payload ?? {});
             } catch (firstErr) {
               const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
@@ -456,7 +456,7 @@ export function createNodesTool(options?: {
             // the gateway and wait for the user to approve/deny via the UI.
             const APPROVAL_TIMEOUT_MS = 120_000;
             const cmdText = command.join(" ");
-            const approvalResult = (await callGatewayTool(
+            const approvalResult = await callGatewayTool(
               "exec.approval.request",
               { ...gatewayOpts, timeoutMs: APPROVAL_TIMEOUT_MS + 5_000 },
               {
@@ -467,7 +467,7 @@ export function createNodesTool(options?: {
                 sessionKey,
                 timeoutMs: APPROVAL_TIMEOUT_MS,
               },
-            )) as { decision?: string; id?: string } | null;
+            );
 
             const decision =
               approvalResult && typeof approvalResult === "object"
@@ -483,7 +483,7 @@ export function createNodesTool(options?: {
             }
 
             // Retry with the approval decision.
-            const raw = (await callGatewayTool("node.invoke", gatewayOpts, {
+            const raw = await callGatewayTool<{ payload?: unknown }>("node.invoke", gatewayOpts, {
               nodeId,
               command: "system.run",
               params: {
@@ -493,7 +493,7 @@ export function createNodesTool(options?: {
               },
               timeoutMs: invokeTimeoutMs,
               idempotencyKey: crypto.randomUUID(),
-            })) as { payload?: unknown };
+            });
             return jsonResult(raw?.payload ?? {});
           }
           case "invoke": {
