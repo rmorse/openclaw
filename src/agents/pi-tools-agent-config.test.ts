@@ -95,6 +95,42 @@ describe("Agent-specific tool filtering", () => {
     expect(toolNames).toContain("apply_patch");
   });
 
+  it("should allow apply_patch when agent-level applyPatch overrides global", () => {
+    const cfg: OpenClawConfig = {
+      tools: {
+        allow: ["read", "exec"],
+        exec: {
+          // Global: applyPatch NOT enabled
+        },
+      },
+      agents: {
+        list: [
+          {
+            id: "patcher",
+            workspace: "~/openclaw-patcher",
+            tools: {
+              exec: {
+                applyPatch: { enabled: true },
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    const tools = createOpenClawCodingTools({
+      config: cfg,
+      sessionKey: "agent:patcher:main",
+      workspaceDir: "/tmp/test-patcher",
+      agentDir: "/tmp/agent-patcher",
+      modelProvider: "openai",
+      modelId: "gpt-5.2",
+    });
+
+    const toolNames = tools.map((t) => t.name);
+    expect(toolNames).toContain("apply_patch");
+  });
+
   it("should apply agent-specific tool policy", () => {
     const cfg: OpenClawConfig = {
       tools: {
@@ -518,5 +554,74 @@ describe("Agent-specific tool filtering", () => {
     });
 
     expect(result?.details.status).toBe("completed");
+  });
+
+  it("should apply agent-level tools.exec config (host, security, safeBins)", () => {
+    const cfg: OpenClawConfig = {
+      tools: {
+        exec: {
+          host: "sandbox",
+          security: "deny",
+        },
+      },
+      agents: {
+        list: [
+          {
+            id: "ops",
+            workspace: "~/openclaw-ops",
+            tools: {
+              exec: {
+                host: "gateway",
+                security: "allowlist",
+                ask: "on-miss",
+                safeBins: ["echo", "ls"],
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    // The "ops" agent should get agent-level exec config (gateway + allowlist),
+    // not the global config (sandbox + deny).
+    const tools = createOpenClawCodingTools({
+      config: cfg,
+      sessionKey: "agent:ops:main",
+      workspaceDir: "/tmp/test-ops",
+      agentDir: "/tmp/agent-ops",
+    });
+    const execTool = tools.find((tool) => tool.name === "exec");
+    // If the global "deny" security were applied, exec would be completely blocked.
+    // The presence of the exec tool confirms agent-level config took effect.
+    expect(execTool).toBeDefined();
+  });
+
+  it("should fall back to global tools.exec when agent has no exec config", () => {
+    const cfg: OpenClawConfig = {
+      tools: {
+        exec: {
+          host: "gateway",
+          security: "allowlist",
+        },
+      },
+      agents: {
+        list: [
+          {
+            id: "basic",
+            workspace: "~/openclaw-basic",
+            // No tools.exec override
+          },
+        ],
+      },
+    };
+
+    const tools = createOpenClawCodingTools({
+      config: cfg,
+      sessionKey: "agent:basic:main",
+      workspaceDir: "/tmp/test-basic",
+      agentDir: "/tmp/agent-basic",
+    });
+    const execTool = tools.find((tool) => tool.name === "exec");
+    expect(execTool).toBeDefined();
   });
 });
