@@ -6,8 +6,13 @@ import path from "node:path";
 import type { SessionPreviewItem } from "./session-utils.types.js";
 import { isCliProvider } from "../agents/model-selection.js";
 import { deriveCliContextTokens, type NormalizedUsage } from "../agents/usage.js";
-import { resolveSessionTranscriptPath } from "../config/sessions.js";
+import {
+  resolveSessionFilePath,
+  resolveSessionTranscriptPath,
+  resolveSessionTranscriptPathInDir,
+} from "../config/sessions.js";
 import { resolveRequiredHomeDir } from "../infra/home-dir.js";
+import { hasInterSessionUserProvenance } from "../sessions/input-provenance.js";
 import { extractToolCallNames, hasToolCall } from "../utils/transcript-tools.js";
 import { stripEnvelope } from "./chat-sanitize.js";
 
@@ -336,19 +341,40 @@ export function resolveSessionTranscriptCandidates(
   agentId?: string,
 ): string[] {
   const candidates: string[] = [];
-  if (sessionFile) {
-    candidates.push(sessionFile);
-  }
+  const pushCandidate = (resolve: () => string): void => {
+    try {
+      candidates.push(resolve());
+    } catch {
+      // Ignore invalid paths/IDs and keep scanning other safe candidates.
+    }
+  };
+
   if (storePath) {
-    const dir = path.dirname(storePath);
-    candidates.push(path.join(dir, `${sessionId}.jsonl`));
+    const sessionsDir = path.dirname(storePath);
+    if (sessionFile) {
+      pushCandidate(() => resolveSessionFilePath(sessionId, { sessionFile }, { sessionsDir }));
+    }
+    pushCandidate(() => resolveSessionTranscriptPathInDir(sessionId, sessionsDir));
+  } else if (sessionFile) {
+    if (agentId) {
+      pushCandidate(() => resolveSessionFilePath(sessionId, { sessionFile }, { agentId }));
+    } else {
+      const trimmed = sessionFile.trim();
+      if (trimmed) {
+        candidates.push(path.resolve(trimmed));
+      }
+    }
   }
+
   if (agentId) {
-    candidates.push(resolveSessionTranscriptPath(sessionId, agentId));
+    pushCandidate(() => resolveSessionTranscriptPath(sessionId, agentId));
   }
+
   const home = resolveRequiredHomeDir(process.env, os.homedir);
-  candidates.push(path.join(home, ".openclaw", "sessions", `${sessionId}.jsonl`));
-  return candidates;
+  const legacyDir = path.join(home, ".openclaw", "sessions");
+  pushCandidate(() => resolveSessionTranscriptPathInDir(sessionId, legacyDir));
+
+  return Array.from(new Set(candidates));
 }
 
 export function archiveFileOnDisk(filePath: string, reason: string): string {
@@ -389,6 +415,7 @@ const MAX_LINES_TO_SCAN = 10;
 type TranscriptMessage = {
   role?: string;
   content?: string | Array<{ type: string; text?: string }>;
+  provenance?: unknown;
 };
 
 function extractTextFromContent(content: TranscriptMessage["content"]): string | null {
@@ -417,6 +444,7 @@ export function readFirstUserMessageFromTranscript(
   storePath: string | undefined,
   sessionFile?: string,
   agentId?: string,
+  opts?: { includeInterSession?: boolean },
 ): string | null {
   const candidates = resolveSessionTranscriptCandidates(sessionId, storePath, sessionFile, agentId);
   const filePath = candidates.find((p) => fs.existsSync(p));
@@ -443,6 +471,9 @@ export function readFirstUserMessageFromTranscript(
         const parsed = JSON.parse(line);
         const msg = parsed?.message as TranscriptMessage | undefined;
         if (msg?.role === "user") {
+          if (opts?.includeInterSession !== true && hasInterSessionUserProvenance(msg)) {
+            continue;
+          }
           const text = extractTextFromContent(msg.content);
           if (text) {
             return text;

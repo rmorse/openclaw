@@ -39,8 +39,7 @@ import { resolveBlockStreamingCoalescing } from "./block-streaming.js";
 import { createFollowupRunner } from "./followup-runner.js";
 import { enqueueFollowupRun, type FollowupRun, type QueueSettings } from "./queue.js";
 import { createReplyToModeFilterForChannel, resolveReplyToMode } from "./reply-threading.js";
-import { incrementCompactionCount } from "./session-updates.js";
-import { persistSessionUsageUpdate } from "./session-usage.js";
+import { incrementRunCompactionCount, persistRunSessionUsage } from "./session-run-accounting.js";
 import { createTypingSignaler } from "./typing-mode.js";
 
 const BLOCK_REPLY_SEND_TIMEOUT_MS = 15_000;
@@ -373,6 +372,7 @@ export async function runReplyAgent(params: {
     }
 
     const usage = runResult.meta.agentMeta?.usage;
+    const promptTokens = runResult.meta.agentMeta?.promptTokens;
     const modelUsed = runResult.meta.agentMeta?.model ?? fallbackModel ?? defaultModel;
     const providerUsed =
       runResult.meta.agentMeta?.provider ?? fallbackProvider ?? followupRun.run.provider;
@@ -391,10 +391,12 @@ export async function runReplyAgent(params: {
         `provider=${providerUsed} model=${modelUsed} cliSessionId=${cliSessionId}`,
     );
 
-    await persistSessionUsageUpdate({
+    await persistRunSessionUsage({
       storePath,
       sessionKey,
       usage,
+      lastCallUsage: runResult.meta.agentMeta?.lastCallUsage,
+      promptTokens,
       modelUsed,
       providerUsed,
       contextTokensUsed,
@@ -502,11 +504,13 @@ export async function runReplyAgent(params: {
     let finalPayloads = replyPayloads;
     const verboseEnabled = resolvedVerboseLevel !== "off";
     if (autoCompactionCompleted) {
-      const count = await incrementCompactionCount({
+      const count = await incrementRunCompactionCount({
         sessionEntry: activeSessionEntry,
         sessionStore: activeSessionStore,
         sessionKey,
         storePath,
+        lastCallUsage: runResult.meta.agentMeta?.lastCallUsage,
+        contextTokensUsed,
       });
       if (verboseEnabled) {
         const suffix = typeof count === "number" ? ` (count ${count})` : "";

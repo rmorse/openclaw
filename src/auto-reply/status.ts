@@ -7,17 +7,13 @@ import type { ElevatedLevel, ReasoningLevel, ThinkLevel, VerboseLevel } from "./
 import { lookupContextTokens } from "../agents/context.js";
 import { DEFAULT_CONTEXT_TOKENS, DEFAULT_MODEL, DEFAULT_PROVIDER } from "../agents/defaults.js";
 import { resolveModelAuthMode } from "../agents/model-auth.js";
-import { isCliProvider, resolveConfiguredModelRef } from "../agents/model-selection.js";
+import { resolveConfiguredModelRef } from "../agents/model-selection.js";
 import { resolveSandboxRuntimeStatus } from "../agents/sandbox.js";
-import {
-  deriveCliContextTokens,
-  derivePromptTokens,
-  normalizeUsage,
-  type UsageLike,
-} from "../agents/usage.js";
+import { derivePromptTokens, normalizeUsage, type UsageLike } from "../agents/usage.js";
 import {
   resolveMainSessionKey,
   resolveSessionFilePath,
+  resolveSessionFilePathOptions,
   type SessionEntry,
   type SessionScope,
 } from "../config/sessions.js";
@@ -25,6 +21,7 @@ import { logVerbose } from "../globals.js";
 import { formatTimeAgo } from "../infra/format-time/format-relative.ts";
 import { resolveCommitHash } from "../infra/git-commit.js";
 import { listPluginCommands } from "../plugins/commands.js";
+import { resolveAgentIdFromSessionKey } from "../routing/session-key.js";
 import {
   getTtsMaxLength,
   getTtsProvider,
@@ -62,9 +59,11 @@ type QueueStatus = {
 type StatusArgs = {
   config?: OpenClawConfig;
   agent: AgentConfig;
+  agentId?: string;
   sessionEntry?: SessionEntry;
   sessionKey?: string;
   sessionScope?: SessionScope;
+  sessionStorePath?: string;
   groupActivation?: "mention" | "always";
   resolvedThink?: ThinkLevel;
   resolvedVerbose?: VerboseLevel;
@@ -171,7 +170,9 @@ const formatQueueDetails = (queue?: QueueStatus) => {
 const readUsageFromSessionLog = (
   sessionId?: string,
   sessionEntry?: SessionEntry,
-  provider?: string,
+  agentId?: string,
+  sessionKey?: string,
+  storePath?: string,
 ):
   | {
       input: number;
@@ -186,7 +187,18 @@ const readUsageFromSessionLog = (
     logVerbose(`[status/readUsageFromSessionLog] no sessionId, returning undefined`);
     return undefined;
   }
-  const logPath = resolveSessionFilePath(sessionId, sessionEntry);
+  let logPath: string;
+  try {
+    const resolvedAgentId =
+      agentId ?? (sessionKey ? resolveAgentIdFromSessionKey(sessionKey) : undefined);
+    logPath = resolveSessionFilePath(
+      sessionId,
+      sessionEntry,
+      resolveSessionFilePathOptions({ agentId: resolvedAgentId, storePath }),
+    );
+  } catch {
+    return undefined;
+  }
   logVerbose(`[status/readUsageFromSessionLog] reading transcript: ${logPath}`);
   if (!fs.existsSync(logPath)) {
     logVerbose(`[status/readUsageFromSessionLog] transcript file not found`);
@@ -240,11 +252,7 @@ const readUsageFromSessionLog = (
     }
     input = lastUsage.input ?? 0;
     output = lastUsage.output ?? 0;
-    // For CLI providers, use full context for this turn (cacheRead + cacheWrite + input)
-    const isCli = isCliProvider(provider ?? "", undefined);
-    promptTokens = isCli
-      ? (deriveCliContextTokens(lastUsage) ?? lastUsage.total ?? input + output)
-      : (derivePromptTokens(lastUsage) ?? lastUsage.total ?? input + output);
+    promptTokens = derivePromptTokens(lastUsage) ?? lastUsage.total ?? input + output;
     const total = lastUsage.total ?? promptTokens + output;
     logVerbose(
       `[status/readUsageFromSessionLog] lastUsage: input=${lastUsage.input} output=${lastUsage.output} cacheRead=${lastUsage.cacheRead} cacheWrite=${lastUsage.cacheWrite} total=${lastUsage.total} → derived promptTokens=${promptTokens} total=${total}`,
@@ -360,7 +368,13 @@ export function buildStatusMessage(args: StatusArgs): string {
   // Prefer prompt-size tokens from the session transcript when it looks larger
   // (cached prompt tokens are often missing from agent meta/store).
   if (args.includeTranscriptUsage) {
-    const logUsage = readUsageFromSessionLog(entry?.sessionId, entry, provider);
+    const logUsage = readUsageFromSessionLog(
+      entry?.sessionId,
+      entry,
+      args.agentId,
+      args.sessionKey,
+      args.sessionStorePath,
+    );
     if (logUsage) {
       const candidate = logUsage.promptTokens || logUsage.total;
       logVerbose(
